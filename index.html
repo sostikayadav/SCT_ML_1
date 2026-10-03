@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignSpeak - Real-Time Sign Language Translator</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="logo">
+                <span class="logo-icon">🤟</span>
+                <h1>SignSpeak</h1>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#home">Home</a></li>
+                <li><a href="#translator">Translator</a></li>
+                <li><a href="#dictionary">Dictionary</a></li>
+                <li><a href="#about">About</a></li>
+            </ul>
+            <div class="header-actions">
+                <button id="theme-toggle" class="btn btn-icon" title="Toggle Theme">
+                    <span id="theme-icon">🌙</span>
+                </button>
+                <button id="start-tutorial" class="btn btn-primary" title="Start Tutorial">
+                    📚 Tutorial
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Home Section -->
+        <section id="home" class="hero">
+            <div class="hero-content">
+                <h2>Breaking Communication Barriers</h2>
+                <p>Real-time sign language to text and speech translation using AI and computer vision</p>
+                <div class="hero-buttons">
+                    <button class="cta-button" onclick="document.getElementById('translator').scrollIntoView({behavior: 'smooth'})">
+                        Start Translating
+                    </button>
+                    <button class="cta-button cta-secondary" onclick="document.getElementById('dictionary').scrollIntoView({behavior: 'smooth'})">
+                        Learn Signs
+                    </button>
+                </div>
+            </div>
+            <div class="hero-image">
+                <div class="hand-animation">🖐️</div>
+            </div>
+        </section>
+
+        <!-- Translator Section -->
+        <section id="translator" class="translator-section">
+            <h2>Sign Language Translator</h2>
+            <p class="section-description">Point your camera at your hand and start signing. The system will detect your signs and convert them to text and speech.</p>
+            
+            <div class="translator-container">
+                <div class="video-panel">
+                    <!-- Mode Selector -->
+                    <div class="mode-selector" id="mode-selector">
+                        <button id="mode-word" class="mode-btn active" title="Word Mode">
+                            📝 Words
+                        </button>
+                        <button id="mode-alphabet" class="mode-btn" title="Alphabet Mode">
+                            🔤 Alphabet
+                        </button>
+                        <button id="mode-number" class="mode-btn" title="Number Mode">
+                            🔢 Numbers
+                        </button>
+                        <div id="current-mode-label" class="mode-label">📝 Word Mode</div>
+                        <div id="mode-description" class="mode-description">Detect complete signs and words from vocabulary</div>
+                    </div>
+
+                    <div class="video-wrapper">
+                        <video id="webcam" autoplay playsinline></video>
+                        <canvas id="output_canvas"></canvas>
+                        <div class="video-overlay">
+                            <div id="loading-indicator" class="hidden">
+                                <div class="spinner"></div>
+                                <p>Loading camera...</p>
+                            </div>
+                            <div id="no-hand-detected" class="hidden">
+                                <p>👋 Show your hand to the camera</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="camera-controls">
+                        <button id="startCamera" class="btn btn-primary">
+                            <span class="btn-icon">📹</span> Start Camera
+                        </button>
+                        <button id="stopCamera" class="btn btn-secondary" disabled>
+                            <span class="btn-icon">⏹️</span> Stop Camera
+                        </button>
+                        <button id="switchCamera" class="btn btn-secondary" disabled>
+                            <span class="btn-icon">🔄</span> Switch Camera
+                        </button>
+                    </div>
+                </div>
+
+                <div class="translation-panel">
+                    <!-- Statistics Panel -->
+                    <div class="statistics-panel">
+                        <h3>📊 Statistics</h3>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-value" id="stat-total-detected">0</div>
+                                <div class="stat-label">Total Signs</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="stat-today-count">0</div>
+                                <div class="stat-label">Today</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="stat-avg-confidence">0%</div>
+                                <div class="stat-label">Avg Confidence</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="stat-session-duration">0m 0s</div>
+                                <div class="stat-label">Session Time</div>
+                            </div>
+                        </div>
+                        <button id="refresh-stats" class="btn btn-small btn-secondary" style="margin-top: 0.5rem;">
+                            🔄 Refresh
+                        </button>
+                    </div>
+
+                    <div class="detection-box">
+                        <h3>🔍 Detected Sign</h3>
+                        <div id="detected-sign" class="sign-display">
+                            <span class="placeholder">Waiting for sign...</span>
+                        </div>
+                        <div id="confidence-meter" class="confidence-meter hidden">
+                            <div class="confidence-bar">
+                                <div id="confidence-fill" class="confidence-fill"></div>
+                            </div>
+                            <span id="confidence-text">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="text-box">
+                        <h3>📝 Translated Text</h3>
+                        <textarea id="translated-text" placeholder="Your translated text will appear here..." readonly></textarea>
+                        <div class="text-controls">
+                            <button id="clear-text" class="btn btn-small btn-secondary">
+                                <span class="btn-icon">🗑️</span> Clear
+                            </button>
+                            <button id="delete-last" class="btn btn-small btn-secondary">
+                                <span class="btn-icon">⬅️</span> Delete Last
+                            </button>
+                            <button id="add-space" class="btn btn-small btn-secondary">
+                                <span class="btn-icon">␣</span> Add Space
+                            </button>
+                            <button id="export-image" class="btn btn-small btn-primary">
+                                <span class="btn-icon">📸</span> Export Image
+                            </button>
+                            <button id="export-text" class="btn btn-small btn-primary">
+                                <span class="btn-icon">📄</span> Export Text
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="speech-box">
+                        <h3>🔊 Text to Speech</h3>
+                        <div class="speech-controls">
+                            <button id="speak-btn" class="btn btn-primary btn-large">
+                                <span class="btn-icon">🔊</span> Speak
+                            </button>
+                            <button id="stop-speak" class="btn btn-secondary btn-large" disabled>
+                                <span class="btn-icon">⏹️</span> Stop
+                            </button>
+                        </div>
+                        <div class="voice-settings">
+                            <label for="voice-select">Voice:</label>
+                            <select id="voice-select"></select>
+                            <label for="rate-slider">Speed:</label>
+                            <input type="range" id="rate-slider" min="0.5" max="2" step="0.1" value="1">
+                            <span id="rate-value">1.0x</span>
+                            <label for="pitch-slider">Pitch:</label>
+                            <input type="range" id="pitch-slider" min="0.5" max="2" step="0.1" value="1">
+                            <span id="pitch-value">1.0</span>
+                        </div>
+                    </div>
+
+                    <div class="history-box">
+                        <h3>📜 Sign History</h3>
+                        <div id="sign-history" class="sign-history">
+                            <p class="placeholder">No signs detected yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="instructions">
+                <h3>How to Use</h3>
+                <div class="instruction-steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h4>Start Camera</h4>
+                            <p>Click "Start Camera" and allow camera access when prompted</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h4>Show Your Hand</h4>
+                            <p>Position your hand clearly in the camera view with good lighting</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h4>Make Signs</h4>
+                            <p>Perform signs from our supported vocabulary (see Dictionary)</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h4>Listen to Translation</h4>
+                            <p>Click "Speak" to hear your translated text aloud</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dictionary Section -->
+        <section id="dictionary" class="dictionary-section">
+            <h2>Sign Dictionary</h2>
+            <p class="section-description">Learn the supported signs in our current vocabulary</p>
+            
+            <div class="search-box">
+                <input type="text" id="sign-search" placeholder="Search for a sign...">
+                <select id="category-filter">
+                    <option value="all">All Categories</option>
+                    <option value="greetings">Greetings</option>
+                    <option value="basic">Basic Words</option>
+                    <option value="questions">Questions</option>
+                    <option value="actions">Actions</option>
+                </select>
+            </div>
+
+            <div id="sign-cards" class="sign-cards">
+                <!-- Sign cards will be dynamically loaded -->
+            </div>
+        </section>
+
+        <!-- About Section -->
+        <section id="about" class="about-section">
+            <h2>About This Project</h2>
+            
+            <div class="about-content">
+                <div class="about-card">
+                    <h3>🎯 Problem Statement</h3>
+                    <p>Sign language users face communication barriers when interacting with people who don't understand sign language. This project aims to bridge that gap through technology.</p>
+                </div>
+
+                <div class="about-card">
+                    <h3>🚀 Objectives</h3>
+                    <ul>
+                        <li>Develop a real-time sign language recognition system</li>
+                        <li>Convert detected signs into readable text</li>
+                        <li>Transform text into natural speech output</li>
+                        <li>Create an accessible and user-friendly interface</li>
+                    </ul>
+                </div>
+
+                <div class="about-card">
+                    <h3>⚙️ Technology Stack</h3>
+                    <div class="tech-stack">
+                        <div class="tech-item">
+                            <span class="tech-icon">🌐</span>
+                            <div>
+                                <h4>Frontend</h4>
+                                <p>HTML5, CSS3, JavaScript</p>
+                            </div>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-icon">📹</span>
+                            <div>
+                                <h4>Computer Vision</h4>
+                                <p>MediaPipe Hands, TensorFlow.js</p>
+                            </div>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-icon">🤖</span>
+                            <div>
+                                <h4>Machine Learning</h4>
+                                <p>Custom Sign Classification Model</p>
+                            </div>
+                        </div>
+                        <div class="tech-item">
+                            <span class="tech-icon">🔊</span>
+                            <div>
+                                <h4>Speech</h4>
+                                <p>Web Speech API</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="about-card">
+                    <h3>📊 System Architecture</h3>
+                    <div class="architecture-diagram">
+                        <div class="arch-step">
+                            <div class="arch-box">📹 Camera Input</div>
+                            <div class="arch-arrow">→</div>
+                        </div>
+                        <div class="arch-step">
+                            <div class="arch-box">🖐️ Hand Detection</div>
+                            <div class="arch-arrow">→</div>
+                        </div>
+                        <div class="arch-step">
+                            <div class="arch-box">🎯 Sign Classification</div>
+                            <div class="arch-arrow">→</div>
+                        </div>
+                        <div class="arch-step">
+                            <div class="arch-box">📝 Text Output</div>
+                            <div class="arch-arrow">→</div>
+                        </div>
+                        <div class="arch-step">
+                            <div class="arch-box">🔊 Speech Synthesis</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="about-card">
+                    <h3>⚠️ Limitations</h3>
+                    <ul>
+                        <li>Currently supports a limited vocabulary of signs</li>
+                        <li>Requires good lighting and clear hand visibility</li>
+                        <li>Works best with static signs (dynamic signs in development)</li>
+                        <li>Accuracy may vary based on hand size and signing style</li>
+                    </ul>
+                </div>
+
+                <div class="about-card">
+                    <h3>🔮 Future Improvements</h3>
+                    <ul>
+                        <li>Expand vocabulary to include more signs</li>
+                        <li>Implement continuous sign language recognition</li>
+                        <li>Add support for multiple sign languages (ASL, BSL, etc.)</li>
+                        <li>Incorporate facial expression and body posture detection</li>
+                        <li>Develop mobile application version</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <p>&copy; 2026 SignSpeak - 4th Year Project</p>
+            <p>Developed with ❤️ to bridge communication gaps</p>
+            <div class="keyboard-shortcuts">
+                <strong>⌨️ Keyboard Shortcuts:</strong> Space = Camera | C = Clear | S = Speak | D = Delete | T = Theme
+            </div>
+        </div>
+    </footer>
+
+    <!-- Tutorial Modal -->
+    <div id="tutorial-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="tutorial-title">Welcome to SignSpeak! 🎉</h3>
+            </div>
+            <div class="modal-body">
+                <p id="tutorial-description" class="tutorial-text">Learn how to use our real-time sign language translator.</p>
+                <div class="tutorial-highlight">
+                    <p id="tutorial-action"><strong>Click "Next" to continue</strong></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="tutorial-dots">
+                    <span class="tutorial-dot active"></span>
+                    <span class="tutorial-dot"></span>
+                    <span class="tutorial-dot"></span>
+                    <span class="tutorial-dot"></span>
+                    <span class="tutorial-dot"></span>
+                    <span class="tutorial-dot"></span>
+                    <span class="tutorial-dot"></span>
+                    <span class="tutorial-dot"></span>
+                </div>
+                <div class="tutorial-buttons">
+                    <button id="tutorial-finish" class="btn btn-primary hidden">Finish</button>
+                    <button id="tutorial-next" class="btn btn-primary">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
